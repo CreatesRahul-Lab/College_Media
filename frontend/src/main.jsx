@@ -13,9 +13,14 @@ import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { BookmarkProvider } from "./context/BookmarkContext.jsx";
 import { SocketProvider } from "./context/SocketContext.jsx";
 import { AccessibilityProvider } from "./context/AccessibilityContext.jsx";
+import { NotificationProvider } from "./context/NotificationContext.jsx";
+import { register as registerServiceWorker } from "./utils/serviceWorkerRegistration";
 import "./index.css";
 import "./styles/accessibility.css";
 import App from "./App.jsx";
+
+// Register service worker for PWA
+registerServiceWorker();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

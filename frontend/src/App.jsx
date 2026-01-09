@@ -30,8 +30,12 @@ const CoursesLanding = lazy(() => import("./pages/CoursesLanding.jsx"));
 const CourseDiscovery = lazy(() => import("./pages/CourseDiscovery.jsx"));
 const LearningMode = lazy(() => import("./pages/LearningMode.jsx"));
 const Landing = lazy(() => import("./pages/Landing.jsx"));
-const NotificationCenter = lazy(() => import("./components/NotificationCenter.jsx"));
-const NotificationPreferences = lazy(() => import("./components/NotificationPreferences.jsx"));
+const NotificationCenter = lazy(() =>
+  import("./components/NotificationCenter.jsx")
+);
+const NotificationPreferences = lazy(() =>
+  import("./components/NotificationPreferences.jsx")
+);
 const SearchResults = lazy(() => import("./pages/SearchResults.jsx"));
 
 const MainLayout = ({
@@ -290,6 +294,8 @@ const App = () => {
           <Routes>
             <Route
               path="/landing"
+              element={
+                <Suspense fallback={<PostSkeleton />}>
                   <Landing />
                 </Suspense>
               }

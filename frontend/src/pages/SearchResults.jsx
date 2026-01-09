@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import SearchBar from '../components/SearchBar';
 import SearchFilters from '../components/SearchFilters';
@@ -9,7 +9,6 @@ import { addToSearchHistory } from '../utils/searchHistory';
 
 const SearchResults = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const query = searchParams.get('q') || '';
   
   const [results, setResults] = useState([]);
@@ -24,13 +23,7 @@ const SearchResults = () => {
   const [totalResults, setTotalResults] = useState(0);
 
   // Fetch search results
-  useEffect(() => {
-    if (query) {
-      fetchResults(1);
-      addToSearchHistory(query);
-    }
-  }, [query, filters]);
-
+  
   const fetchResults = async (pageNum) => {
     if (!query.trim()) return;
 
@@ -70,6 +63,13 @@ const SearchResults = () => {
       fetchResults(page + 1);
     }
   };
+
+useEffect(() => {
+    if (query) {
+      fetchResults(1);
+      addToSearchHistory(query);
+    }
+  }, [query, filters]);
 
   // Infinite scroll
   useEffect(() => {

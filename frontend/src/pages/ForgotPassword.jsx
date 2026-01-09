@@ -1,16 +1,33 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { GraduationCap, Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import { authAPI } from "../services/authService";
+import toast from "react-hot-toast";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Add your password reset logic here
-    console.log("Password reset requested for:", email);
-    setIsSubmitted(true);
+    setLoading(true);
+    
+    try {
+      const response = await authAPI.forgotPassword(email);
+      
+      if (response.success) {
+        toast.success(response.message);
+        setIsSubmitted(true);
+      } else {
+        toast.error(response.message || "Failed to send reset link");
+      }
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      toast.error(error.response?.data?.message || "Failed to send reset link");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -28,10 +45,19 @@ const ForgotPassword = () => {
         <div className="bg-white rounded-3xl shadow-xl p-8 md:p-10">
           {!isSubmitted ? (
             <>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot password?</h1>
-              <p className="text-gray-600 mb-8">
-                No worries! Enter your email address and we'll send you a link to reset your password.
-              </p>
+              <div className="mb-6">
+                <Link 
+                  to="/login" 
+                  className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition mb-4"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="text-sm">Back to login</span>
+                </Link>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot password?</h1>
+                <p className="text-gray-600">
+                  No worries! Enter your email and we'll send you reset instructions.
+                </p>
+              </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Email */}
@@ -46,9 +72,10 @@ const ForgotPassword = () => {
                       id="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#e8684a] focus:border-transparent outline-none transition"
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#e8684a] focus:border-transparent outline-none transition text-gray-900"
                       placeholder="you@college.edu"
                       required
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -56,66 +83,48 @@ const ForgotPassword = () => {
                 {/* Submit Button */}
                 <button
                   type="submit"
-                  className="w-full bg-[#e8684a] text-white py-3 rounded-xl font-semibold hover:bg-[#d65a3d] transition shadow-lg hover:shadow-xl"
+                  disabled={loading}
+                  className="w-full bg-[#e8684a] text-white py-3 rounded-xl font-semibold hover:bg-[#d65a3d] transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Send Reset Link
+                  {loading ? "Sending..." : "Send Reset Link"}
                 </button>
               </form>
-
-              {/* Back to Login */}
-              <Link
-                to="/login"
-                className="flex items-center justify-center gap-2 mt-6 text-gray-600 hover:text-gray-900 transition"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to login
-              </Link>
             </>
           ) : (
             <>
-              {/* Success Message */}
+              {/* Success State */}
               <div className="text-center">
-                <div className="flex justify-center mb-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-10 h-10 text-green-600" />
-                  </div>
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
                 </div>
-                
-                <h1 className="text-3xl font-bold text-gray-900 mb-3">Check your email</h1>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Check your email</h1>
                 <p className="text-gray-600 mb-6">
-                  We've sent a password reset link to
-                  <br />
-                  <span className="font-semibold text-gray-900">{email}</span>
+                  We've sent password reset instructions to <span className="font-semibold text-gray-900">{email}</span>
                 </p>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-                  <p className="text-sm text-blue-800">
-                    <strong>Didn't receive the email?</strong> Check your spam folder or try another email address.
+                <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                  <p className="text-sm text-gray-600">
+                    Didn't receive the email? Check your spam folder or{" "}
+                    <button
+                      onClick={() => setIsSubmitted(false)}
+                      className="text-[#e8684a] hover:text-[#d65a3d] font-medium"
+                    >
+                      try another email
+                    </button>
                   </p>
                 </div>
-
-                {/* Resend Button */}
-                <button
-                  onClick={() => setIsSubmitted(false)}
-                  className="w-full bg-[#e8684a] text-white py-3 rounded-xl font-semibold hover:bg-[#d65a3d] transition shadow-lg hover:shadow-xl mb-4"
-                >
-                  Try Another Email
-                </button>
-
-                {/* Back to Login */}
                 <Link
                   to="/login"
-                  className="flex items-center justify-center gap-2 text-gray-600 hover:text-gray-900 transition"
+                  className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  Back to login
+                  <span>Back to login</span>
                 </Link>
               </div>
             </>
           )}
         </div>
 
-        {/* Back to Home */}
+        {/* Footer Link */}
         <Link to="/" className="block text-center mt-6 text-gray-600 hover:text-gray-900 transition">
           ← Back to home
         </Link>

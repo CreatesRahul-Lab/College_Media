@@ -40,6 +40,9 @@ const NotificationPreferences = lazy(() =>
   import("./components/NotificationPreferences.jsx")
 );
 const SearchResults = lazy(() => import("./pages/SearchResults.jsx"));
+const Login = lazy(() => import("./pages/Login.jsx"));
+const Signup = lazy(() => import("./pages/Signup.jsx"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
 
 // Cursor Trail Component
 const CursorTrail = () => {

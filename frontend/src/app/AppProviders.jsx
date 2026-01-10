@@ -4,7 +4,7 @@ import InstallPWA from "../components/InstallPWA.jsx";
 import OfflineIndicator from "../components/OfflineIndicator.jsx";
 import ErrorBoundary from "../components/ErrorBoundary.jsx";
 import { ErrorProvider } from "../context/ErrorContext.jsx";
-import { CollectionProvider } from "../context/CollectionContext.jsx";
+import { ModerationProvider } from "../context/ModerationContext.jsx";
 import Toaster from 'react-hot-toast'
 
 export const AppProviders = ({ children }) => {
@@ -13,7 +13,7 @@ export const AppProviders = ({ children }) => {
 
     return (
         <ErrorProvider>
-            <CollectionProvider>
+            <ModerationProvider>
                 <ErrorBoundary>
                     <Toaster
                         position="top-right"
@@ -38,7 +38,7 @@ export const AppProviders = ({ children }) => {
                     <InstallPWA />
                     <OfflineIndicator />
                 </ErrorBoundary>
-            </CollectionProvider>
+            </ModerationProvider>
         </ErrorProvider>
     );
 };

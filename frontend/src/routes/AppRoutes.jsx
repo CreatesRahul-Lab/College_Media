@@ -28,8 +28,8 @@ const Landing = lazy(() => import("../pages/Landing.jsx"));
 const NotificationCenter = lazy(() => import("../components/NotificationCenter.jsx"));
 const NotificationPreferences = lazy(() => import("../components/NotificationPreferences.jsx"));
 const SearchResults = lazy(() => import("../pages/SearchResults.jsx"));
-const Collections = lazy(() => import("../pages/Collections.jsx"));
-const CollectionDetail = lazy(() => import("../pages/CollectionDetail.jsx"));
+const ModerationDashboard = lazy(() => import("../pages/admin/ModerationDashboard.jsx"));
+const ReportDetail = lazy(() => import("../pages/admin/ReportDetail.jsx"));
 const Settings = lazy(() => import("../pages/Settings.jsx"));
 const Profile = lazy(() => import("../pages/Profile.jsx"));
 const Messages = lazy(() => import("../pages/Messages.jsx"));
@@ -140,19 +140,19 @@ const AppRoutes = ({
         />
 
         <Route
-          path="collections"
+          path="admin/moderation"
           element={
             <LazyWrapper>
-              <Collections />
+              <ModerationDashboard />
             </LazyWrapper>
           }
         />
 
         <Route
-          path="collections/:collectionId"
+          path="admin/moderation/reports/:reportId"
           element={
             <LazyWrapper>
-              <CollectionDetail />
+              <ReportDetail />
             </LazyWrapper>
           }
         />

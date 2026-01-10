@@ -101,20 +101,28 @@ export const searchApi = {
   getTrending: () => apiClient.get('/search/trending'),
 };
 
-// Collections endpoints
-export const collectionsApi = {
-  getAll: () => apiClient.get('/collections'),
-  getById: (id) => apiClient.get(`/collections/${id}`),
-  create: (data) => apiClient.post('/collections', data),
-  update: (id, data) => apiClient.put(`/collections/${id}`, data),
-  delete: (id) => apiClient.delete(`/collections/${id}`),
-  addPost: (collectionId, postId) => 
-    apiClient.post(`/collections/${collectionId}/posts`, { postId }),
-  removePost: (collectionId, postId) => 
-    apiClient.delete(`/collections/${collectionId}/posts/${postId}`),
-  getPosts: (collectionId, params) => 
-    apiClient.get(`/collections/${collectionId}/posts`, { params }),
-  togglePrivacy: (id) => apiClient.put(`/collections/${id}/privacy`),
+// Moderation endpoints
+export const moderationApi = {
+  // Submit a report (regular users)
+  submitReport: (data) => apiClient.post('/reports', data),
+  
+  // Get all reports (admin only)
+  getReports: (params) => apiClient.get('/admin/reports', { params }),
+  
+  // Get single report details (admin only)
+  getReportDetails: (reportId) => apiClient.get(`/admin/reports/${reportId}`),
+  
+  // Take action on a report (admin only)
+  takeAction: (reportId, data) => apiClient.put(`/admin/reports/${reportId}/action`, data),
+  
+  // Bulk action on multiple reports (admin only)
+  bulkAction: (data) => apiClient.post('/admin/reports/bulk-action', data),
+  
+  // Submit appeal for moderation action
+  submitAppeal: (data) => apiClient.post('/appeals', data),
+  
+  // Get moderation statistics (admin only)
+  getStatistics: () => apiClient.get('/admin/statistics/reports'),
 };
 
 // Export all APIs
@@ -126,5 +134,5 @@ export default {
   upload: uploadApi,
   notifications: notificationsApi,
   search: searchApi,
-  collections: collectionsApi,
+  moderation: moderationApi,
 };

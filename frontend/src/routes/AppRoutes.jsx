@@ -9,8 +9,6 @@ const LazyWrapper = ({ children }) => (
   </Suspense>
 );
 
-
-
 const Reels = lazy(() => import("../pages/Reels.jsx"));
 const ContactUs = lazy(() => import("../pages/ContactUs.jsx"));
 const CertificatePage = lazy(() => import("../pages/CertificatePage.jsx"));
@@ -36,6 +34,7 @@ const Stories = lazy(() => import("../pages/Stories.jsx"));
 const Explore = lazy(() => import("../pages/Explore.jsx"));
 const Trending = lazy(() => import("../pages/Trending.jsx"));
 const Feed = lazy(() => import("../pages/Feed.jsx"));
+const AlumniConnect = lazy(() => import("../pages/AlumniConnect.jsx"));
 
 const AppRoutes = ({
     activeTab,
@@ -252,6 +251,15 @@ const AppRoutes = ({
               <Feed />
             </LazyWrapper>
           }
+        />
+
+        <Route
+            path="alumni-connect"
+            element={
+                <LazyWrapper>
+                    <AlumniConnect />
+                </LazyWrapper>
+            }
         />
       </Route>
     </Routes>

@@ -72,6 +72,14 @@ apiClient.interceptors.response.use(
       );
     }
 
+    // Check for network errors or offline status
+    // Status 0/undefined usually means network error/cors/offline
+    if (!error.response && error.code !== 'ERR_CANCELED') {
+      // Import dynamically to avoid circular dependency issues at module level
+      const { default: offlineQueue } = await import('../utils/offlineQueue');
+      await offlineQueue.add(error.config);
+    }
+
     // Handle specific error cases
     if (error.response) {
       // Server responded with error status
@@ -140,7 +148,7 @@ apiClient.interceptors.response.use(
     } else if (error.request) {
       // Request made but no response received
       throw new NetworkError(
-        'Network error. Please check your internet connection.'
+        'Network error. Request added to offline queue.'
       );
     } else {
       // Something else happened

@@ -43,7 +43,9 @@ class ErrorBoundary extends React.Component {
     this.setState(prevState => ({
       error,
       errorInfo,
-      errorCount: prevState.errorCount + 1
+      errorCount: prevState.errorCount + 1,
+      isApiError,
+      isRetryable,
     }));
   }
 
@@ -136,6 +138,27 @@ class ErrorBoundary extends React.Component {
                     )}
                   </ul>
                 </div>
+
+                {/* API Error Specific Guidance */}
+                {this.state.isApiError && (
+                  <div className="mt-4 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+                    <div className="flex items-start gap-2">
+                      <Wifi className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-blue-800 font-medium">
+                          {this.state.isRetryable
+                            ? 'Connection Issue Detected'
+                            : 'API Error Occurred'}
+                        </p>
+                        <p className="text-blue-700 text-sm mt-1">
+                          {this.state.isRetryable
+                            ? 'This appears to be a temporary connection issue. Retrying may resolve the problem.'
+                            : 'Please check your internet connection and try again.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex gap-4">

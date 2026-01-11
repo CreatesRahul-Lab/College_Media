@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { commentsApi } from "../api/endpoints";
 import { useTheme } from "../context/ThemeContext";
-import useFocusTrap from "../hooks/useFocusTrap";
-import useOptimisticUpdate from "../hooks/useOptimisticUpdate";
+import useTypingIndicator from "../hooks/useTypingIndicator";
+import TypingIndicator from "./TypingIndicator";
 
 const CommentModal = ({ isOpen, onClose, postId, commentCount }) => {
   const [comments, setComments] = useState([]);
@@ -32,6 +32,20 @@ const CommentModal = ({ isOpen, onClose, postId, commentCount }) => {
     errorMessage: 'Failed to post comment. Please try again.'
   });
 
+  // Mock user data (replace with actual user context)
+  const currentUser = {
+    id: 'user-' + Math.random().toString(36).substr(2, 9),
+    username: 'You'
+  };
+
+  // Typing indicator (socket will be null for now, simulating without backend)
+  const { typingUsers, startTyping, stopTyping } = useTypingIndicator(
+    postId,
+    currentUser.id,
+    currentUser.username,
+    null // Socket instance - pass actual socket when available
+  );
+
   // This effect runs every time the postId changes, 
   // ensuring comments stay synced with the visible reel.
   useEffect(() => {
@@ -39,6 +53,13 @@ const CommentModal = ({ isOpen, onClose, postId, commentCount }) => {
       setComments([]); // Clear previous comments immediately for better UX
       fetchComments();
     }
+
+    // Stop typing when modal closes
+    return () => {
+      if (isOpen) {
+        stopTyping();
+      }
+    };
   }, [isOpen, postId]); //
 
   const fetchComments = async () => {
@@ -55,12 +76,23 @@ const CommentModal = ({ isOpen, onClose, postId, commentCount }) => {
     }
   };
 
+  const handleCommentChange = (e) => {
+    setNewComment(e.target.value);
+
+    // Trigger typing indicator
+    if (e.target.value.trim()) {
+      startTyping();
+    } else {
+      stopTyping();
+    }
+  };
+
   const handlePostComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    const commentText = newComment;
-    setNewComment(""); // Clear input immediately
+    // Stop typing indicator
+    stopTyping();
 
     try {
       // Add optimistic comment
@@ -126,21 +158,27 @@ const CommentModal = ({ isOpen, onClose, postId, commentCount }) => {
       </div>
 
       {/* Input Area */}
-      <div className="p-6 border-t dark:border-slate-800 border-gray-100">
-        <form onSubmit={handlePostComment} className="flex flex-col gap-3">
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Write a comment..."
-            className={`w-full p-4 h-24 rounded-2xl resize-none outline-none border-none text-sm ${theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-900'
-              }`}
-          />
-          <div className="flex justify-end">
-            <button type="submit" disabled={!newComment.trim()} className="bg-purple-600 text-white px-8 py-2.5 rounded-full font-bold transition-all disabled:opacity-30">
-              Post
-            </button>
-          </div>
-        </form>
+      <div className="border-t dark:border-slate-800 border-gray-100">
+        {/* Typing Indicator */}
+        <TypingIndicator typingUsers={typingUsers} />
+
+        <div className="p-6">
+          <form onSubmit={handlePostComment} className="flex flex-col gap-3">
+            <textarea
+              value={newComment}
+              onChange={handleCommentChange}
+              onBlur={stopTyping}
+              placeholder="Write a comment..."
+              className={`w-full p-4 h-24 rounded-2xl resize-none outline-none border-none text-sm ${theme === 'dark' ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-900'
+                }`}
+            />
+            <div className="flex justify-end">
+              <button type="submit" disabled={!newComment.trim()} className="bg-purple-600 text-white px-8 py-2.5 rounded-full font-bold transition-all disabled:opacity-30">
+                Post
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

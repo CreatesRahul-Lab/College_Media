@@ -100,6 +100,7 @@ const startServer = async () => {
   app.use("/api/messages", require("./routes/messages"));
   app.use("/api/account", require("./routes/account"));
   app.use("/api/notifications", require("./routes/notifications"));
+  app.use("/api/alumni", require("./routes/alumni"));
 
   // ------------------
   // ❌ ERROR HANDLERS (VERY IMPORTANT ORDER)

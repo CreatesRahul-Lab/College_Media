@@ -16,9 +16,6 @@ const JWT_SECRET =
 
 /* =====================================================
    🔐 AUTH + AUTHZ MIDDLEWARE (IDOR SAFE)
-===================================================== */
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
 
   if (!token) {
     return res.status(401).json({
@@ -97,42 +94,6 @@ if (!fs.existsSync("uploads/")) fs.mkdirSync("uploads/");
 
 /* =====================================================
    👤 GET OWN PROFILE (IDOR SAFE)
-===================================================== */
-router.get("/profile", verifyToken, async (req, res, next) => {
-  try {
-    res.json({
-      success: true,
-      data: req.currentUser,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-/* =====================================================
-   ✏️ UPDATE OWN PROFILE (IDOR + CONCURRENT SAFE)
-===================================================== */
-router.put(
-  "/profile",
-  verifyToken,
-  validateProfileUpdate,
-  checkValidation,
-  async (req, res, next) => {
-    try {
-      const { firstName, lastName, bio } = req.body;
-      const db = req.app.get("dbConnection");
-
-      if (db?.useMongoDB) {
-        req.currentUser.firstName = firstName;
-        req.currentUser.lastName = lastName;
-        req.currentUser.bio = bio;
-
-        const updatedUser = await req.currentUser.safeSave();
-
-        return res.json({
-          success: true,
-          data: updatedUser,
-          message: "Profile updated successfully",
         });
       }
 

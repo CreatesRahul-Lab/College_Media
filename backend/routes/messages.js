@@ -1,14 +1,14 @@
-const express = require("express");
-const MessageMongo = require("../models/Message");
-const MessageMock = require("../mockdb/messageDB");
-const UserMongo = require("../models/User");
-const UserMock = require("../mockdb/userDB");
-const {
-  validateMessage,
-  validateMessageId,
-  checkValidation,
-} = require("../middleware/validationMiddleware");
-const jwt = require("jsonwebtoken");
+const express = require('express');
+const MessageMongo = require('../models/Message');
+const MessageMock = require('../mockdb/messageDB');
+const UserMongo = require('../models/User');
+const UserMock = require('../mockdb/userDB');
+const { validateMessage, validateMessageId, checkValidation } = require('../middleware/validationMiddleware');
+const logger = require('../utils/logger');
+const { apiLimiter } = require('../middleware/rateLimitMiddleware');
+const { isValidMessageContent, isValidURL, isValidObjectId } = require('../utils/validators');
+const router = express.Router();
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 const JWT_SECRET =
@@ -40,29 +40,44 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-/* ======================================================
-   SEND MESSAGE (DEPENDENCY-FAILURE SAFE)
-====================================================== */
-router.post(
-  "/",
-  verifyToken,
-  validateMessage,
-  checkValidation,
-  async (req, res, next) => {
-    try {
-      const { receiver, content, messageType, attachmentUrl } = req.body;
-      const useMongoDB = req.app.get("dbConnection")?.useMongoDB;
+/**
+ * @route   POST /api/messages
+ * @desc    Send a new message
+ * @access  Private
+ */
+router.post('/', verifyToken, validateMessage, checkValidation, async (req, res) => {
+  try {
+    const { receiver, content, messageType, attachmentUrl } = req.body;
 
-      const receiverUser = useMongoDB
-        ? await UserMongo.findById(receiver)
-        : await UserMock.findById(receiver);
+    // Validate message content
+    if (!isValidMessageContent(content)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Message content must be 1-2000 characters'
+      });
+    }
 
-      if (!receiverUser) {
-        return res.status(404).json({
-          success: false,
-          message: "Receiver not found",
-        });
-      }
+    // Validate receiver ID format
+    if (!isValidObjectId(receiver)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid receiver ID format'
+      });
+    }
+
+    // Validate attachment URL if provided
+    if (attachmentUrl && !isValidURL(attachmentUrl)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid attachment URL format'
+      });
+    }
+
+    const dbConnection = req.app.get('dbConnection');
+    const useMongoDB = dbConnection?.useMongoDB;
 
       if (receiver === req.userId) {
         return res.status(400).json({

@@ -6,10 +6,12 @@ const {
   checkValidation,
 } = require("../middleware/validationMiddleware");
 const router = express.Router();
-const jwt = require("jsonwebtoken");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const path = require('path');
+const logger = require('../utils/logger');
+const { apiLimiter } = require('../middleware/rateLimitMiddleware');
+const { isValidName, isValidBio, isValidEmail } = require('../utils/validators');
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "college_media_secret_key";
@@ -64,9 +66,138 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) cb(null, true);
-    else cb(new Error("Only image files are allowed"));
-  },
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
+
+// Get current user profile
+router.get('/profile', verifyToken, async (req, res, next) => {
+  try {
+    // Get database connection from app
+    const dbConnection = req.app.get('dbConnection');
+
+    if (dbConnection && dbConnection.useMongoDB) {
+      // Use MongoDB
+      const user = await UserMongo.findById(req.userId).select('-password');
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: user,
+        message: 'Profile retrieved successfully'
+      });
+    } else {
+      // Use mock database
+      const user = await UserMock.findById(req.userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: user,
+        message: 'Profile retrieved successfully'
+      });
+    }
+  } catch (error) {
+    logger.error('Get profile error:', error);
+    next(error);
+  }
+});
+
+// Update user profile
+router.put('/profile', verifyToken, validateProfileUpdate, checkValidation, async (req, res, next) => {
+  try {
+    const { firstName, lastName, bio } = req.body;
+
+    // Validate inputs
+    if (firstName && !isValidName(firstName)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid first name format (1-50 characters, letters only)'
+      });
+    }
+
+    if (lastName && !isValidName(lastName)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid last name format (1-50 characters, letters only)'
+      });
+    }
+
+    if (bio && !isValidBio(bio)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Bio must be 500 characters or less'
+      });
+    }
+
+    // Get database connection from app
+    const dbConnection = req.app.get('dbConnection');
+
+    if (dbConnection && dbConnection.useMongoDB) {
+      // Use MongoDB
+      const updatedUser = await UserMongo.findByIdAndUpdate(
+        req.userId,
+        { firstName, lastName, bio },
+        { new: true, runValidators: true }
+      ).select('-password');
+
+      if (!updatedUser) {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: updatedUser,
+        message: 'Profile updated successfully'
+      });
+    } else {
+      // Use mock database
+      const updatedUser = await UserMock.update(
+        req.userId,
+        { firstName, lastName, bio }
+      );
+
+      if (!updatedUser) {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: updatedUser,
+        message: 'Profile updated successfully'
+      });
+    }
+  } catch (error) {
+    logger.error('Update profile error:', error);
+    next(error);
+  }
 });
 
 if (!fs.existsSync("uploads/")) fs.mkdirSync("uploads/");

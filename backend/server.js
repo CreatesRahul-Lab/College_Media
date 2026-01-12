@@ -1,34 +1,13 @@
-/**
- * ================================
- *  College Media – Backend Server
- *  Timeout-Safe | Large-File Ready
- *  Production Hardened
- * ================================
- */
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const path = require('path');
+const { initDB } = require('./config/db');
+const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const logger = require('./utils/logger');
+const { globalLimiter } = require('./middleware/rateLimitMiddleware');
+const { sanitizeAll, validateContentType, preventParameterPollution } = require('./middleware/sanitizationMiddleware');
 
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const path = require("path");
-const http = require("http");
-const os = require("os");
-const { startEventLoopMonitor } = require("./utils/eventLoopMonitor");
-
-/* ------------------
-   🔧 INTERNAL IMPORTS
------------------- */
-const { initDB } = require("./config/db");
-const { notFound, errorHandler } = require("./middleware/errorMiddleware");
-const resumeRoutes = require("./routes/resume");
-const uploadRoutes = require("./routes/upload");
-const { globalLimiter, authLimiter } = require("./middleware/rateLimiter");
-const { slidingWindowLimiter } = require("./middleware/slidingWindowLimiter");
-const { warmUpCache } = require("./utils/cache");
-const logger = require("./utils/logger");
-
-/* ------------------
-   🌱 ENV SETUP
------------------- */
 dotenv.config();
 
 const ENV = process.env.NODE_ENV || "development";
@@ -59,43 +38,17 @@ const FEATURE_FLAGS = Object.freeze({
     }
   });
 
-  if (
-    ENV === "production" &&
-    (FEATURE_FLAGS.ENABLE_EXPERIMENTAL_RESUME ||
-      FEATURE_FLAGS.ENABLE_NEW_MESSAGING_FLOW)
-  ) {
-    logger.critical("Unsafe feature flags enabled in production");
-    process.exit(1);
-  }
+// Apply input sanitization (XSS & NoSQL injection protection)
+app.use(sanitizeAll);
 
-  logger.info("Feature flags loaded", { env: ENV, FEATURE_FLAGS });
-})();
+// Validate Content-Type for POST/PUT/PATCH requests
+app.use(validateContentType);
 
-/* ------------------
-   🌍 CORS
------------------- */
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  })
-);
+// Prevent parameter pollution
+app.use(preventParameterPollution(['tags', 'categories'])); // Allow arrays for specific params
 
-/* ------------------
-   📦 BODY PARSERS
------------------- */
-app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true, limit: "2mb" }));
-
-/* ------------------
-   ⏱️ REQUEST TIMEOUT GUARD
------------------- */
-app.use((req, res, next) => {
-  req.setTimeout(10 * 60 * 1000);
-  res.setTimeout(10 * 60 * 1000);
-  next();
-});
+// Static file serving for uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 /* ------------------
    🐢 SLOW REQUEST LOGGER

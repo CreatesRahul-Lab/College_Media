@@ -9,6 +9,7 @@ const { validateRegister, validateLogin, checkValidation } = require('../middlew
 const { sendPasswordResetOTP } = require('../services/emailService');
 const logger = require('../utils/logger');
 const { authLimiter, registerLimiter, forgotPasswordLimiter, apiLimiter } = require('../middleware/rateLimitMiddleware');
+const { isValidEmail, isValidUsername, isValidPassword, isValidName, isValidOTP } = require('../utils/validators');
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "college_media_secret_key";
@@ -50,6 +51,48 @@ router.post('/register', registerLimiter, validateRegister, checkValidation, asy
     });
     
     const { username, email, password, firstName, lastName } = req.body;
+
+    // Additional validation using custom validators
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid email format'
+      });
+    }
+
+    if (!isValidUsername(username)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Username must be 3-30 characters, alphanumeric with underscores/hyphens only'
+      });
+    }
+
+    const passwordValidation = isValidPassword(password);
+    if (!passwordValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: passwordValidation.message
+      });
+    }
+
+    if (firstName && !isValidName(firstName)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid first name format'
+      });
+    }
+
+    if (lastName && !isValidName(lastName)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid last name format'
+      });
+    }
 
     // Get database connection from app
     const dbConnection = req.app.get('dbConnection');
@@ -125,6 +168,15 @@ router.post('/register', registerLimiter, validateRegister, checkValidation, asy
 router.post('/login', authLimiter, validateLogin, checkValidation, async (req, res, next) => {
   try {
     const { email, password } = req.body;
+
+    // Validate email format
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid email format'
+      });
+    }
 
     // Get database connection from app
     const dbConnection = req.app.get('dbConnection');
@@ -218,6 +270,15 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res, next) =>
       });
     }
 
+    // Validate email format
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid email format'
+      });
+    }
+
     // Get database connection from app
     const dbConnection = req.app.get('dbConnection');
 
@@ -273,6 +334,24 @@ router.post('/verify-otp', authLimiter, async (req, res, next) => {
         success: false,
         data: null,
         message: 'Email and OTP are required'
+      });
+    }
+
+    // Validate email format
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'Invalid email format'
+      });
+    }
+
+    // Validate OTP format
+    if (!isValidOTP(otp)) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: 'OTP must be a 6-digit code'
       });
     }
 

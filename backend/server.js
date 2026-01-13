@@ -58,14 +58,11 @@ const sampleJob = require("./jobs/sampleJob");
    🌱 ENVIRONMENT SETUP
 dotenv.config();
 
-const ENV = process.env.NODE_ENV || "development";
-const PORT = process.env.PORT || 5000;
-const TRUST_PROXY = process.env.TRUST_PROXY === "true";
-const METRICS_TOKEN = process.env.METRICS_TOKEN || "metrics-secret";
-
-/* 🔐 AUTH / TOKEN CONFIG */
-const COOKIE_SECURE = ENV === "production";
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
+// 🔥 HARD PROOF TEST - Check if MISTRAL_API_KEY is loaded
+console.log("=" .repeat(60));
+console.log("🔍 ENVIRONMENT VARIABLE CHECK:");
+console.log("MISTRAL_API_KEY:", process.env.MISTRAL_API_KEY ? `EXISTS (length: ${process.env.MISTRAL_API_KEY.length})` : "❌ NOT FOUND");
+console.log("=" .repeat(60));
 
 const app = express();
 const server = http.createServer(app);

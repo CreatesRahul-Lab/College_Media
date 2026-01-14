@@ -13,6 +13,7 @@ function LeftSidebar() {
     { label: "Learning", path: "/learning" },
     { label: "Reels", path: "/reels" },
     { label: "Messages", path: "/messages" },
+    { label: "ATS Resume", path: "/ats-resume" },
     { label: "Profile", path: "/profile" },
   ];
 

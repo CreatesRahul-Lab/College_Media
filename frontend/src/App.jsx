@@ -21,6 +21,7 @@ const CreatePost = lazy(() => import("./components/CreatePost.jsx"));
 const CoursesLanding = lazy(() => import("./pages/CoursesLanding.jsx"));
 const LearningMode = lazy(() => import("./pages/LearningMode.jsx"));
 const Landing = lazy(() => import("./pages/Landing.jsx"));
+const ATSResume = lazy(() => import("./pages/ATSResume.jsx"));
 
 const MainLayout = ({
   children,
@@ -309,6 +310,7 @@ const App = () => {
                     path="/advanced-syllabus"
                     element={<AdvancedSyllabusPage />}
                   />
+                  <Route path="/ats-resume" element={<ATSResume />} />
                 </Routes>
                 </Suspense>
               </MainLayout>

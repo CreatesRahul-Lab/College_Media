@@ -1,213 +1,276 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const UserMongo = require('../models/User');
-const UserMock = require('../mockdb/userDB');
-const { validateRegister, validateLogin, checkValidation } = require('../middleware/validationMiddleware');
+"use strict";
+
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const speakeasy = require("speakeasy");
+const QRCode = require("qrcode");
+const crypto = require("crypto");
+
+const UserMongo = require("../models/User");
+const UserMock = require("../mockdb/userDB");
+const Session = require("../models/Session");
+
+const {
+  validateRegister,
+  validateLogin,
+  checkValidation,
+} = require("../middleware/validationMiddleware");
+
+const {
+  authLimiter,
+  registerLimiter,
+  forgotPasswordLimiter,
+  apiLimiter,
+} = require("../middleware/rateLimitMiddleware");
+
+const {
+  isValidEmail,
+  isValidUsername,
+  isValidPassword,
+  isValidName,
+  isValidOTP,
+} = require("../utils/validators");
+
+const logger = require("../utils/logger");
+const passport = require("../config/passport");
+
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'college_media_secret_key';
+const JWT_SECRET = process.env.JWT_SECRET || "college_media_secret_key";
 
-// Register a new user
-router.post('/register', validateRegister, checkValidation, async (req, res, next) => {
+/* ============================================================
+   🔐 SESSION HELPERS
+============================================================ */
+async function revokeOldSessions(userId, reason = "concurrency_limit") {
+  await Session.updateMany(
+    { userId, isActive: true },
+    {
+      $set: {
+        isActive: false,
+        revokedAt: new Date(),
+        revokedReason: reason,
+      },
+    }
+  );
+}
+
+async function createSession(userId, req) {
+  const sessionId = crypto.randomUUID();
+
+  await Session.create({
+    userId,
+    sessionId,
+    ipAddress: req.ip,
+    userAgent: req.headers["user-agent"],
+    isActive: true,
+    lastActiveAt: new Date(),
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    correlationId: req.correlationId,
+  });
+
+  return sessionId;
+}
+
+/* ============================================================
+   🔑 JWT VERIFY (SINGLE SOURCE)
+============================================================ */
+const verifyToken = async (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ success: false, message: "No token" });
+  }
+
   try {
-    const { username, email, password, firstName, lastName } = req.body;
-    
-    // Get database connection from app
-    const dbConnection = req.app.get('dbConnection');
-    
-    if (dbConnection && dbConnection.useMongoDB) {
-      // Use MongoDB
-      const existingUser = await UserMongo.findOne({ 
-        $or: [{ email }, { username }] 
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userId = decoded.userId;
+    req.sessionId = decoded.sessionId;
+
+    const session = await Session.findOne({
+      sessionId: decoded.sessionId,
+      isActive: true,
+    });
+
+    if (!session) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Session expired" });
+    }
+
+    next();
+  } catch {
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid token" });
+  }
+};
+
+/* ============================================================
+   📝 REGISTER
+============================================================ */
+router.post(
+  "/register",
+  registerLimiter,
+  validateRegister,
+  checkValidation,
+  async (req, res, next) => {
+    try {
+      const { username, email, password, firstName, lastName } = req.body;
+
+      if (!isValidEmail(email)) throw new Error("Invalid email");
+      if (!isValidUsername(username)) throw new Error("Invalid username");
+
+      const pwdCheck = isValidPassword(password);
+      if (!pwdCheck.valid) throw new Error(pwdCheck.message);
+
+      const existing = await UserMongo.findOne({
+        $or: [{ email }, { username }],
       });
-      
-      if (existingUser) {
-        return res.status(400).json({ 
-          success: false,
-          data: null,
-          message: 'User with this email or username already exists' 
-        });
+
+      if (existing) {
+        return res
+          .status(400)
+          .json({ success: false, message: "User already exists" });
       }
 
-      // Hash the password
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-
-      // Create new user
-      const newUser = new UserMongo({
+      const hashed = await bcrypt.hash(password, 10);
+      const user = await UserMongo.create({
         username,
         email,
-        password: hashedPassword,
+        password: hashed,
         firstName,
-        lastName
+        lastName,
       });
-
-      await newUser.save();
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { userId: newUser._id },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
 
       res.status(201).json({
         success: true,
-        data: {
-          id: newUser._id,
-          username: newUser.username,
-          email: newUser.email,
-          firstName: newUser.firstName,
-          lastName: newUser.lastName,
-          token
-        },
-        message: 'User registered successfully'
+        message: "User registered successfully",
+        data: { id: user._id },
       });
-    } else {
-      // Use mock database
-      try {
-        const newUser = await UserMock.create({
-          username,
-          email,
-          password, // password will be hashed in the create function
-          firstName,
-          lastName
-        });
-
-        // Generate JWT token
-        const token = jwt.sign(
-          { userId: newUser._id },
-          JWT_SECRET,
-          { expiresIn: '7d' }
-        );
-
-        res.status(201).json({
-          success: true,
-          data: {
-            id: newUser._id,
-            username: newUser.username,
-            email: newUser.email,
-            firstName: newUser.firstName,
-            lastName: newUser.lastName,
-            token
-          },
-          message: 'User registered successfully'
-        });
-      } catch (error) {
-        if (error.message.includes('already exists')) {
-          return res.status(400).json({ 
-            success: false,
-            data: null,
-            message: error.message 
-          });
-        }
-        throw error; // Re-throw other errors
-      }
+    } catch (err) {
+      next(err);
     }
-  } catch (error) {
-    console.error('Registration error:', error);
-    next(error); // Pass to error handler
   }
-});
+);
 
-// Login user
-router.post('/login', validateLogin, checkValidation, async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-    
-    // Get database connection from app
-    const dbConnection = req.app.get('dbConnection');
-    
-    if (dbConnection && dbConnection.useMongoDB) {
-      // Use MongoDB
+/* ============================================================
+   🔓 LOGIN (PASSWORD)
+============================================================ */
+router.post(
+  "/login",
+  authLimiter,
+  validateLogin,
+  checkValidation,
+  async (req, res, next) => {
+    try {
+      const { email, password } = req.body;
+
       const user = await UserMongo.findOne({ email });
       if (!user) {
-        return res.status(400).json({ 
-          success: false,
-          data: null,
-          message: 'Invalid credentials' 
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid credentials" });
+      }
+
+      const match = await bcrypt.compare(password, user.password);
+      if (!match) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid credentials" });
+      }
+
+      // 🔐 2FA check
+      if (user.twoFactorEnabled) {
+        return res.json({
+          success: true,
+          requiresTwoFactor: true,
+          userId: user._id,
         });
       }
 
-      // Check password
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ 
-          success: false,
-          data: null,
-          message: 'Invalid credentials' 
-        });
-      }
+      // 🔒 Enforce single session
+      await revokeOldSessions(user._id);
 
-      // Generate JWT token
+      const sessionId = await createSession(user._id, req);
+
       const token = jwt.sign(
-        { userId: user._id },
+        { userId: user._id, sessionId },
         JWT_SECRET,
-        { expiresIn: '7d' }
+        { expiresIn: "7d" }
       );
 
       res.json({
         success: true,
-        data: {
-          id: user._id,
-          username: user.username,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          profilePicture: user.profilePicture,
-          bio: user.bio,
-          token
-        },
-        message: 'Login successful'
+        message: "Login successful",
+        data: { token },
       });
-    } else {
-      // Use mock database
-      const user = await UserMock.findByEmail(email);
-      if (!user) {
-        return res.status(400).json({ 
-          success: false,
-          data: null,
-          message: 'Invalid credentials' 
-        });
-      }
-
-      // Check password
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ 
-          success: false,
-          data: null,
-          message: 'Invalid credentials' 
-        });
-      }
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { userId: user._id },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      res.json({
-        success: true,
-        data: {
-          id: user._id,
-          username: user.username,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          profilePicture: user.profilePicture,
-          bio: user.bio,
-          token
-        },
-        message: 'Login successful'
-      });
+    } catch (err) {
+      next(err);
     }
-  } catch (error) {
-    console.error('Login error:', error);
-    next(error); // Pass to error handler
+  }
+);
+
+/* ============================================================
+   🔐 2FA VERIFY LOGIN
+============================================================ */
+router.post("/2fa/verify-login", async (req, res, next) => {
+  try {
+    const { userId, token } = req.body;
+
+    const user = await UserMongo.findById(userId);
+    if (!user || !user.twoFactorEnabled) {
+      return res.status(400).json({ success: false });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token,
+      window: 2,
+    });
+
+    if (!verified) {
+      return res.status(401).json({ success: false });
+    }
+
+    await revokeOldSessions(user._id);
+    const sessionId = await createSession(user._id, req);
+
+    const jwtToken = jwt.sign(
+      { userId: user._id, sessionId },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      success: true,
+      message: "2FA login successful",
+      data: { token: jwtToken },
+    });
+  } catch (err) {
+    next(err);
   }
 });
 
+/* ============================================================
+   🚪 LOGOUT
+============================================================ */
+router.post("/logout", verifyToken, apiLimiter, async (req, res) => {
+  await Session.updateOne(
+    { sessionId: req.sessionId },
+    {
+      $set: {
+        isActive: false,
+        revokedAt: new Date(),
+        revokedReason: "logout",
+      },
+    }
+  );
+
+  res.json({ success: true, message: "Logged out successfully" });
+});
+
+/* ============================================================
+   📤 EXPORT
+============================================================ */
 module.exports = router;

@@ -1,9 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
-// import { useDebounce } from '../hooks/useDebounce'; // We are using this, but let's make sure it's the efficient one or if we should use the new utility?
-// Actually, let's explicitely import the debounce utility and wrap the fetch if we werent using the hook.
-// But the Hook is the React-way.
 import { useDebounce } from '../hooks/useDebounce';
 import { searchApi } from '../api/endpoints';
 import { addToSearchHistory, getSearchHistory } from '../utils/searchHistory';
@@ -13,25 +10,23 @@ import AdvancedSearchFilters from './AdvancedSearchFilters';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 
-/**
- * Search Bar Component
- * A search input field with magnifying glass icon for finding users and posts, including voice search and advanced filters.
- * @param {Object} props - The component props
- * @param {string} [props.className=''] - Additional CSS classes for styling
- * @returns {JSX.Element} The search bar JSX element
- */
-const SearchBar = ({ className = '' }) => {
+interface SearchBarProps {
+  className?: string;
+}
+
+const SearchBar: React.FC<SearchBarProps> = ({ className = '' }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  // Optimized: Increased debounce delay slightly to 400ms for better performance
+  const [filters, setFilters] = useState<any>({});
+
   const debouncedQuery = useDebounce(query, 400);
-  const searchRef = useRef(null);
+  const searchRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  // Voice search integration
   const {
     isListening,
     transcript,
@@ -40,26 +35,23 @@ const SearchBar = ({ className = '' }) => {
     startListening,
     stopListening
   } = useVoiceSearch({
-    onResult: (text) => {
+    onResult: (text: string) => {
       setQuery(text);
       setIsOpen(true);
     },
     onEnd: () => {
-      // Auto-search when voice input ends
       if (transcript.trim()) {
         handleSearch(transcript);
       }
     }
   });
 
-  // Show voice error as toast
   useEffect(() => {
     if (voiceError) {
       toast.error(voiceError);
     }
   }, [voiceError]);
 
-  // Fetch suggestions when debounced query changes
   useEffect(() => {
     if (debouncedQuery.trim()) {
       fetchSuggestions(debouncedQuery);
@@ -67,13 +59,12 @@ const SearchBar = ({ className = '' }) => {
       setSuggestions([]);
     }
   }, [debouncedQuery]);
-  // ...
 
-  const fetchSuggestions = async (searchQuery) => {
+  const fetchSuggestions = async (searchQuery: string) => {
     setLoading(true);
     try {
       const results = await searchApi.getSuggestions(searchQuery);
-      setSuggestions(results);
+      setSuggestions(results.data || results);
     } catch (error) {
       console.error('Search failed:', error);
       setSuggestions([]);
@@ -82,16 +73,32 @@ const SearchBar = ({ className = '' }) => {
     }
   };
 
-  const handleSearch = (searchQuery) => {
+  const handleSearch = (searchQuery: string) => {
     if (!searchQuery.trim()) return;
 
     addToSearchHistory(searchQuery);
-    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+
+    const params = new URLSearchParams({
+      q: searchQuery,
+      sortBy: filters.sortBy || 'relevance',
+      contentType: filters.contentType !== 'all' ? filters.contentType : undefined,
+      dateRange: filters.dateRange !== 'all' ? filters.dateRange : undefined
+    });
+
+    // @ts-ignore
+    const filteredParams = new URLSearchParams();
+    params.forEach((value, key) => {
+      if (value !== 'undefined' && value !== '') {
+        filteredParams.append(key, value);
+      }
+    });
+
+    navigate(`/search?${filteredParams.toString()}`);
     setIsOpen(false);
     setQuery('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     handleSearch(query);
   };
@@ -99,15 +106,14 @@ const SearchBar = ({ className = '' }) => {
   const handleClear = () => {
     setQuery('');
     setSuggestions([]);
-    searchRef.current?.focus();
+    searchRef.current?.querySelector('input')?.focus();
   };
 
-  // Keyboard shortcut (Ctrl/Cmd + K)
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
-        searchRef.current?.focus();
+        searchRef.current?.querySelector('input')?.focus();
         setIsOpen(true);
       }
     };
@@ -116,10 +122,9 @@ const SearchBar = ({ className = '' }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -150,15 +155,13 @@ const SearchBar = ({ className = '' }) => {
               setIsOpen(true);
             }}
             onFocus={() => setIsOpen(true)}
-            placeholder={t('common.searchPlaceholder') + t('common.searchShortcut')}
+            placeholder={t('common.searchPlaceholder') + " (Ctrl+K)"}
             className="w-full pl-10 pr-24 py-2.5 rounded-full border border-border bg-bg-secondary text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary transition-all"
             aria-label={t('common.search')}
             autoComplete="off"
           />
 
-          {/* Action Buttons Container */}
           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {/* Voice Search Button */}
             {isSupported && (
               <button
                 type="button"
@@ -177,7 +180,6 @@ const SearchBar = ({ className = '' }) => {
               </button>
             )}
 
-            {/* Filter Button */}
             <button
               type="button"
               onClick={() => setShowFilters(!showFilters)}
@@ -191,7 +193,6 @@ const SearchBar = ({ className = '' }) => {
               <Icon icon="mdi:filter-variant" width={20} />
             </button>
 
-            {/* Clear Button */}
             {query && (
               <button
                 type="button"
@@ -206,7 +207,6 @@ const SearchBar = ({ className = '' }) => {
         </div>
       </form>
 
-      {/* Advanced Filters Dropdown */}
       {showFilters && (
         <AdvancedSearchFilters
           onFilterChange={setFilters}

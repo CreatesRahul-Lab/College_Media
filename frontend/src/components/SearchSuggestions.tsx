@@ -1,23 +1,32 @@
+import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   removeFromSearchHistory,
   clearSearchHistory,
 } from "../utils/searchHistory";
-import { useState } from "react";
 
-const SearchSuggestions = ({
+interface SearchSuggestionsProps {
+  suggestions: any[];
+  loading: boolean;
+  query: string;
+  history: string[];
+  onSelect: (item: string) => void;
+  onClose?: () => void;
+}
+
+const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   suggestions,
   loading,
   query,
   history,
   onSelect,
+  onClose
 }) => {
   const { t } = useTranslation();
-  const [historyItems, setHistoryItems] = useState(history);
+  const [historyItems, setHistoryItems] = useState<string[]>(history);
 
-  const handleRemoveHistory = (item, e) => {
+  const handleRemoveHistory = (item: string, e: React.MouseEvent) => {
     e.stopPropagation();
     removeFromSearchHistory(item);
     setHistoryItems((prev) => prev.filter((h) => h !== item));
@@ -28,8 +37,8 @@ const SearchSuggestions = ({
     setHistoryItems([]);
   };
 
-  const getIcon = (type) => {
-    const icons = {
+  const getIcon = (type: string) => {
+    const icons: Record<string, { icon: string; color: string }> = {
       user: { icon: "mdi:account", color: "text-blue-500" },
       post: { icon: "mdi:file-document", color: "text-green-500" },
       tag: { icon: "mdi:pound", color: "text-purple-500" },

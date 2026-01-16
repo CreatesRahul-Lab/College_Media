@@ -1,18 +1,15 @@
-/**
- * AdvancedSearchFilters Component
- * Issue #408: Implement Advanced Search with Filters and Voice Search Support
- * 
- * Provides advanced filtering options for search results including content type,
- * date range, and sorting preferences with localStorage persistence.
- */
-
 import React, { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
 import { useTranslation } from 'react-i18next';
 
 const FILTER_STORAGE_KEY = 'search_filters_preferences';
 
-const AdvancedSearchFilters = ({ onFilterChange, onClose }) => {
+interface AdvancedSearchFiltersProps {
+    onFilterChange: (filters: any) => void;
+    onClose: () => void;
+}
+
+const AdvancedSearchFilters: React.FC<AdvancedSearchFiltersProps> = ({ onFilterChange, onClose }) => {
     const { t } = useTranslation();
     const [filters, setFilters] = useState(() => {
         // Load saved preferences from localStorage
@@ -32,7 +29,7 @@ const AdvancedSearchFilters = ({ onFilterChange, onClose }) => {
         }
     }, [filters, onFilterChange]);
 
-    const handleFilterChange = (filterType, value) => {
+    const handleFilterChange = (filterType: string, value: string) => {
         setFilters(prev => ({
             ...prev,
             [filterType]: value
@@ -112,6 +109,7 @@ const AdvancedSearchFilters = ({ onFilterChange, onClose }) => {
                         className="w-full px-3 py-2 border border-border rounded-lg bg-bg-primary text-text-primary focus:ring-2 focus:ring-brand-primary focus:border-transparent"
                     >
                         <option value="relevance">{t('searchFilterBar.advancedFilters.relevance')}</option>
+                        <option value="semantic">{t('searchFilterBar.advancedFilters.semantic') || '🧠 AI Semantic Match'}</option>
                         <option value="newest">{t('searchFilterBar.advancedFilters.newest')}</option>
                         <option value="oldest">{t('searchFilterBar.advancedFilters.oldest')}</option>
                         <option value="popular">{t('searchFilterBar.advancedFilters.popular')}</option>
